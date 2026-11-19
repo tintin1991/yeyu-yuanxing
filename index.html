@@ -1,0 +1,977 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>野遇 · 陌生人社交 App v0.79</title>
+<link rel="stylesheet" href="assets/app.css?v=99" />
+<meta http-equiv="Cache-Control" content="no-cache, must-revalidate" />
+</head>
+<body>
+<div class="stage">
+
+  <!-- ==================== 手机 ==================== -->
+  <div class="phone">
+    <div class="bezel">
+      <div class="statusbar">
+        <span id="sbTime">9:41</span>
+        <span class="sb-right">
+          <svg width="17" height="11" viewBox="0 0 17 11"><rect x="0" y="7" width="3" height="4" rx="1" fill="#111"/><rect x="4.5" y="5" width="3" height="6" rx="1" fill="#111"/><rect x="9" y="2.5" width="3" height="8.5" rx="1" fill="#111"/><rect x="13.5" y="0" width="3" height="11" rx="1" fill="#111"/></svg>
+          <svg width="16" height="11" viewBox="0 0 16 11"><path d="M8 9.5 5.5 6.8a3.6 3.6 0 0 1 5 0L8 9.5Z" fill="#111"/><path d="M8 5.2a6 6 0 0 0-4.2 1.7L2.6 5.6a7.9 7.9 0 0 1 10.8 0L12.2 6.9A6 6 0 0 0 8 5.2Z" fill="#111"/></svg>
+          <svg width="25" height="12" viewBox="0 0 25 12"><rect x="0.5" y="0.5" width="21" height="11" rx="3" stroke="#111" fill="none" opacity=".45"/><rect x="2" y="2" width="16" height="8" rx="2" fill="#111"/><path d="M23 4.2v3.6a2 2 0 0 0 0-3.6Z" fill="#111" opacity=".45"/></svg>
+        </span>
+      </div>
+      <div class="notch"></div>
+
+      <div class="viewport" id="viewport">
+
+        <!-- ---------- 消息 ---------- -->
+        <section class="screen active" id="sc-chats">
+          <div class="navbar"><span>消息</span>
+            <div class="nb-right"><button class="nav-btn" data-action="read-all" title="全部标为已读"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="m3 10.5 2.6 2.6L10 8.7"/><path d="m8 12.4 1 1 6-6.8"/></svg></button><button class="nav-btn" data-action="new-chat" title="发起聊天"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M10 4.2v11.6M4.2 10h11.6"/></svg></button></div>
+          </div>
+          <div class="searchbar"><input class="input" id="chatSearch" placeholder="搜索" oninput="App.renderChats()" /></div>
+          <div class="screen-body"><div id="chatList"></div></div>
+        </section>
+
+        <!-- ---------- 好友 ---------- -->
+        <section class="screen" id="sc-contacts">
+          <div class="navbar"><span>好友</span>
+            <div class="nb-right"><button class="nav-btn" data-action="add-friend" title="添加好友"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M10 4.2v11.6M4.2 10h11.6"/></svg></button></div>
+          </div>
+          <div class="searchbar"><input class="input" id="contactSearch" placeholder="搜索" oninput="App.renderContacts()" /></div>
+          <div class="screen-body"><div id="contactList"></div></div>
+          <!-- v0.57 字母索引：只渲染真实存在的好友首字母（内容由 renderContactIndex 依数据生成，空列表时整条隐藏） -->
+          <div class="ct-index off" id="ctIndex" aria-label="按字母快速定位好友" hidden></div>
+          <div class="ct-bubble" id="ctBubble" aria-hidden="true"></div>
+        </section>
+
+        <!-- ---------- 发现（v0.58 关系维度二分：广场 · 推荐 / 好友 · 互友+关注） ---------- -->
+        <section class="screen" id="sc-discover">
+          <div class="navbar"><span>发现</span>
+            <div class="nb-right"><button class="nav-btn" data-action="open-search" title="搜索"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="9" r="5.2"/><path d="m13 13 3.4 3.4"/></svg></button><!-- v0.65：发布入口只在「广场」Tab 出现——发布动作归属广场，好友 Tab 是消费侧，不放创作入口 --><button class="nav-btn" id="btnPublishDiscover" data-action="publish" title="发布动态"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M13.6 3.4l3 3L8.2 14.8H5.2v-3l8.4-8.4Z"/><path d="M12.2 4.8l3 3"/></svg></button></div>
+          </div>
+          <div class="subtabs" id="discoverTabs">
+            <!-- v0.58 关系维度二分：广场（推荐 · 陌生人主体）/ 好友（互友 + 关注，严格时间序） -->
+            <button class="subtab active" data-action="discover-tab" data-v="plaza">广场</button>
+            <button class="subtab" data-action="discover-tab" data-v="friends">好友</button>
+          </div>
+          <div class="screen-body">
+            <!-- 广场 -->
+            <div class="dpanel" id="dpanel-plaza">
+              <div class="filters" id="plazaFilters"></div>
+              <div id="plazaList" class="pad"></div>
+            </div>
+            <!-- 好友流：互友 + 我关注的人（v0.58 由「动态」改名，口径见 renderFriendsFeed） -->
+            <!-- v0.63：删掉好友流顶部的背景墙 + 悬浮头像（含为其留的 30px 占位）。
+                 它是从朋友圈沿用的装饰，与「好友」的实际用途无关；这里要的是一屏尽量多的
+                 熟人更新，200px 封面 + 头像换不来任何信息量。 -->
+            <div class="dpanel" id="dpanel-friends" style="display:none">
+              <div id="momentList"></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ---------- 圈子（v0.38 重构：参考「全部圈子」双栏布局） ---------- -->
+        <section class="screen" id="sc-circles">
+          <div class="navbar"><span>圈子</span>
+            <div class="nb-right"><button class="nav-btn" data-action="circle-menu-toggle" title="更多"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M10 4.2v11.6M4.2 10h11.6"/></svg></button></div>
+          </div>
+          <!-- v0.41：右上角「＋」下拉菜单：创建圈子 / 邀请码入圈 -->
+          <div class="pop-menu" id="circMenu"></div>
+          <!-- 我的圈子：横向卡片条 -->
+          <div class="circ-mine">
+            <div class="cm-hd"><b>我的圈子</b><small>点击进入</small></div>
+            <div class="cm-scroll" id="circMine"></div>
+            <!-- v0.39：待办（入圈申请/邀请）归位到「我的圈子」区，不再占据 feed 顶部 -->
+            <div class="cm-todo" id="circTodo"></div>
+          </div>
+          <!-- 双栏：左分类侧栏 + 右内容 -->
+          <div class="screen-body" style="padding-bottom:0">
+            <div class="circ-layout">
+              <aside class="circ-side" id="circSide"></aside>
+              <div class="circ-main" id="circMain">
+                <div class="circ-toolbar">
+                  <input class="input" id="circleSearch" placeholder="搜索圈子 / 城市 / 关键词" oninput="App.circleSearch(this.value)" />
+                </div>
+                <div id="circleList"></div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ---------- 我的 ---------- -->
+        <section class="screen" id="sc-me">
+          <div class="navbar"><span>我的</span>
+            <div class="nb-right"><button class="nav-btn nb-bell" data-action="sysmsg" title="系统消息"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M10 3.2a4.6 4.6 0 0 0-4.6 4.6c0 3.4-1.2 4.4-1.2 4.4h11.6s-1.2-1-1.2-4.4A4.6 4.6 0 0 0 10 3.2Z"/><path d="M8.4 14.6a1.7 1.7 0 0 0 3.2 0"/></svg><i class="sys-dot" id="sysDot" style="display:none"></i></button><button class="nav-btn" data-action="edit" title="编辑资料"><svg width="19" height="19" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M13.6 3.4l3 3L8.2 14.8H5.2v-3l8.4-8.4Z"/><path d="M12.2 4.8l3 3"/></svg></button><button class="nav-btn" data-action="settings" title="设置"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="2.5"/><path d="M10 3.4v1.8M10 14.8v1.8M3.4 10h1.8M14.8 10h1.8M5.5 5.5l1.3 1.3M13.2 13.2l1.3 1.3M14.5 5.5l-1.3 1.3M6.8 13.2l-1.3 1.3"/></svg></button></div>
+          </div>
+          <div class="screen-body"><div id="meBody"></div></div>
+        </section>
+
+        <!-- ---------- Tab ---------- -->
+        <nav class="tabbar">
+          <button class="tab active" data-tab="chats">
+            <svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 8.9 8.9 0 0 1-3.8-.9L3 20.5l1.5-4.6A8.4 8.4 0 0 1 12 3.1a8.4 8.4 0 0 1 9 8.4Z"/></svg>
+            <span class="tab-txt">消息</span><span class="badge" id="tabBadge" style="display:none">0</span>
+          </button>
+          <button class="tab" data-tab="contacts">
+            <svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.9"/></svg>
+            <span class="tab-txt">好友</span>
+          </button>
+          <button class="tab" data-tab="discover">
+            <svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9.2"/><path d="m14.8 9.2-1.4 4-4 1.4 1.4-4 4-1.4Z" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <span class="tab-txt">发现</span>
+          </button>
+          <button class="tab" data-tab="circles">
+            <svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="9" r="3.2"/><circle cx="16" cy="15" r="3.2"/><path d="M11.2 11.2 13.8 13.8"/></svg>
+            <span class="tab-txt">圈子</span>
+          </button>
+          <button class="tab" data-tab="me">
+            <svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><circle cx="12" cy="8" r="3.8"/><path d="M4.5 20.5a7.5 7.5 0 0 1 15 0" stroke-linecap="round"/></svg>
+            <span class="tab-txt">我的</span><span class="badge" id="meBadge" style="display:none">0</span>
+          </button>
+        </nav>
+
+        <!-- ==================== 二级页面 ==================== -->
+
+        <!-- 聊天页 -->
+        <div class="overlay" id="ov-chat">
+          <div class="ov-head">
+            <button class="nav-btn" data-close="ov-chat">‹ 返回</button>
+            <h3 id="chatHead"><span id="chatTitle">会话</span><span class="sub" id="chatSub"></span></h3>
+            <div style="position:absolute;right:6px"><button class="nav-btn" id="chatMore" title="会话设置"><svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor"><circle cx="4.6" cy="10" r="1.4"/><circle cx="10" cy="10" r="1.4"/><circle cx="15.4" cy="10" r="1.4"/></svg></button></div>
+          </div>
+          <div class="ann-bar" id="chatAnn" style="display:none"></div>
+          <div class="chat-wrap" id="chatWrap"></div>
+          <div class="quote-bar" id="quoteBar" style="display:none"></div>
+          <div class="chat-input">
+            <button class="nav-btn" id="voiceBtn" title="语音"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="3.2" width="4" height="8" rx="2"/><path d="M5.6 10.2a4.4 4.4 0 0 0 8.8 0M10 14.6v2.2"/></svg></button>
+            <button class="nav-btn" id="atBtn" title="@提及" style="display:none">@</button>
+            <input class="input" id="chatInput" placeholder="发消息…" autocomplete="off" />
+            <button class="nav-btn" id="emojiBtn" title="表情"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="7"/><path d="M7.3 12.3a4.2 4.2 0 0 0 5.4 0"/><path d="M8.1 7.9h.01M11.9 7.9h.01"/></svg></button>
+            <button class="nav-btn" id="plusBtn" title="更多"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M10 4.2v11.6M4.2 10h11.6"/></svg></button>
+            <button class="btn sm" id="sendBtn" style="display:none">发送</button>
+          </div>
+          <div class="emoji-panel" id="emojiPanel"></div>
+          <div class="ext-panel" id="extPanel"></div>
+          <div class="sheet-mask" id="ov-mention">
+            <div class="sheet">
+              <div class="sheet-title">@ 谁 <span style="float:right;color:var(--sub);font-size:12px" data-close="ov-mention">取消</span></div>
+              <div id="mentionBody" style="margin-top:6px"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 消息页右上「＋」菜单 -->
+        <div class="pop-menu" id="plusMenu"></div>
+
+        <!-- 消息长按/点击操作 -->
+        <div class="sheet-mask" id="ov-msgact">
+          <div class="sheet">
+            <h4 style="margin:0 0 10px;font-size:16px" id="msgActTitle">消息操作</h4>
+            <div id="msgActBody"></div>
+            <button class="btn ghost block" data-action="close-msgact" style="margin-top:10px">取消</button>
+          </div>
+        </div>
+
+        <!-- 会话列表长按操作 -->
+        <div class="sheet-mask" id="ov-convact">
+          <div class="sheet">
+            <h4 style="margin:0 0 10px;font-size:16px" id="convActTitle">会话操作</h4>
+            <div id="convActBody"></div>
+            <button class="btn ghost block" data-action="close-convact" style="margin-top:10px">取消</button>
+          </div>
+        </div>
+
+        <!-- 转发选择器 -->
+        <div class="sheet-mask" id="ov-forward">
+          <div class="sheet">
+            <h4 style="margin:0 0 10px;font-size:16px">转发到</h4>
+            <div id="fwdBody" class="fwd-list"></div>
+            <button class="btn ghost block" data-close="ov-forward" style="margin-top:10px">取消</button>
+          </div>
+        </div>
+
+        <!-- 语音录制 -->
+        <div class="center-mask" id="ov-voice">
+          <div class="dialog" style="text-align:center">
+            <div style="font-size:34px" id="voiceIco">🎙</div>
+            <h4 style="margin:6px 0 4px;font-size:15px" id="voiceTip">松开发送，上滑取消</h4>
+            <div style="color:var(--sub);font-size:12px" id="voiceTime">0.0″</div>
+            <div style="display:flex;gap:8px;margin-top:14px">
+              <button class="btn ghost block" data-action="voice-cancel">取消</button>
+              <button class="btn block" data-action="voice-send">发送语音</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 选人（发起群聊 / 邀请 / @） -->
+        <div class="overlay" id="ov-picker">
+          <div class="ov-head">
+            <button class="nav-btn" data-action="close-picker">取消</button>
+            <h3 id="pickerTitle">选择成员</h3>
+            <div style="position:absolute;right:8px"><button class="btn sm" id="pickerOk">确定</button></div>
+          </div>
+          <div class="searchbar"><input class="input" id="pickerSearch" placeholder="搜索好友" oninput="App.renderPicker()" /></div>
+          <div class="screen-body"><div id="pickerBody"></div></div>
+        </div>
+
+        <!-- 我的群聊 -->
+        <div class="overlay" id="ov-grouplist">
+          <div class="ov-head">
+            <button class="nav-btn" data-close="ov-grouplist">‹ 返回</button>
+            <h3>我的群聊</h3>
+          </div>
+          <div class="screen-body"><div id="groupListBody"></div></div>
+        </div>
+
+        <!-- 添加好友 -->
+        <div class="overlay" id="ov-addfriend">
+          <div class="ov-head">
+            <button class="nav-btn" data-close="ov-addfriend">‹ 返回</button>
+            <h3>添加好友</h3>
+          </div>
+          <div class="searchbar"><input class="input" id="addFriendInput" placeholder="手机号 / 野遇号 / 昵称" /></div>
+          <div class="screen-body"><div id="addFriendBody"></div></div>
+        </div>
+
+        <!-- 聊天记录搜索 -->
+        <div class="overlay" id="ov-searchmsg">
+          <div class="ov-head">
+            <button class="nav-btn" data-close="ov-searchmsg">‹ 返回</button>
+            <h3>聊天记录</h3>
+          </div>
+          <div class="searchbar"><input class="input" id="searchMsgInput" placeholder="搜索当前会话消息" /></div>
+          <div class="screen-body"><div id="searchMsgBody"></div></div>
+        </div>
+
+        <!-- 群聊信息 -->
+        <div class="overlay" id="ov-groupinfo">
+          <div class="ov-head">
+            <button class="nav-btn" data-close="ov-groupinfo">‹ 返回</button>
+            <h3>群聊信息</h3>
+          </div>
+          <div class="screen-body"><div id="groupInfoBody"></div></div>
+        </div>
+
+        <!-- 群成员管理 -->
+        <div class="overlay" id="ov-members">
+          <div class="ov-head">
+            <button class="nav-btn" data-close="ov-members">‹ 返回</button>
+            <h3>群成员</h3>
+          </div>
+          <div class="searchbar"><input class="input" id="memberSearch" placeholder="搜索成员" oninput="App.renderMembers()" /></div>
+          <div class="screen-body"><div id="membersBody"></div></div>
+        </div>
+
+        <!-- 修改群名称 / 群公告 -->
+        <div class="overlay" id="ov-grpedit">
+          <div class="ov-head">
+            <button class="nav-btn" data-close="ov-grpedit">取消</button>
+            <h3 id="grpEditTitle">编辑</h3>
+            <div style="position:absolute;right:8px"><button class="btn sm" data-action="do-grpedit">保存</button></div>
+          </div>
+          <div class="screen-body pad">
+            <input class="input" id="grpEditInput" />
+            <p style="color:var(--sub);font-size:12px;margin-top:10px" id="grpEditHint"></p>
+          </div>
+        </div>
+
+        <!-- 靓号商城 -->
+        <div class="overlay" id="ov-niceid">
+          <div class="ov-head">
+            <button class="nav-btn" data-close="ov-niceid">‹ 返回</button>
+            <h3>靓号商城</h3>
+            <div style="position:absolute;right:8px"><button class="btn sm" data-action="orders">订单</button></div>
+          </div>
+          <div class="screen-body"><div id="niceBody"></div></div>
+        </div>
+
+        <!-- 圈子详情（v0.15） -->
+        <div class="overlay" id="ov-circledetail">
+          <div class="ov-head">
+            <button class="nav-btn" data-action="circle-back">‹ 返回</button>
+            <h3 id="cdTitle">圈子</h3>
+            <!-- v0.65：圈内「发布」不再是独立能力，而是复用广场的发布页并预选本圈 -->
+            <div style="position:absolute;right:8px"><button class="btn sm" data-action="circle-publish">✎ 发布</button></div>
+          </div>
+          <div class="screen-body">
+            <div id="cdHead"></div>
+            <div id="cdFeed" class="pad"></div>
+          </div>
+        </div>
+
+        <!-- 成员管理 + 入圈审核（v0.17） -->
+        <div class="overlay" id="ov-circlemem">
+          <div class="ov-head">
+            <button class="nav-btn" data-action="cmem-cancel">‹ 返回</button>
+            <h3 id="cmemTitle">成员管理</h3>
+          </div>
+          <div class="subtabs" id="cmemTabs"></div>
+          <div class="screen-body pad">
+            <div id="cmemTop"></div>
+            <div id="cmemBody"></div>
+          </div>
+        </div>
+
+        <!-- 单个成员操作（v0.17） -->
+        <div class="overlay" id="ov-memact">
+          <div class="ov-head">
+            <button class="nav-btn" data-action="memact-cancel">取消</button>
+            <h3 id="memactTitle">成员操作</h3>
+          </div>
+          <div class="screen-body pad" id="memactBody"></div>
+        </div>
+
+        <!-- 申请入圈（v0.17） -->
+        <div class="overlay" id="ov-circleapply">
+          <div class="ov-head">
+            <button class="nav-btn" data-action="apply-cancel">取消</button>
+            <h3>申请加入</h3>
+            <div style="position:absolute;right:8px"><button class="btn sm" data-action="apply-submit">提交</button></div>
+          </div>
+          <div class="screen-body pad" id="applyBody"></div>
+        </div>
+
+        <!-- 邀请好友入圈（v0.16 私密圈：熟人介绍） -->
+        <div class="overlay" id="ov-circleinvite">
+          <div class="ov-head">
+            <button class="nav-btn" data-action="cinv-cancel">取消</button>
+            <h3>邀请好友入圈</h3>
+            <div style="position:absolute;right:8px"><button class="btn sm" data-action="cinv-send">发送邀请</button></div>
+          </div>
+          <div class="screen-body pad" id="cinvBody"></div>
+        </div>
+
+        <!-- 邀请码：展示 / 输入（v0.16 私密圈） -->
+        <div class="overlay" id="ov-circlecode">
+          <div class="ov-head">
+            <button class="nav-btn" data-action="ccode-cancel">‹ 返回</button>
+            <h3 id="ccodeTitle">邀请码入圈</h3>
+          </div>
+          <div class="screen-body pad" id="ccodeBody"></div>
+        </div>
+
+        <!-- 创建 / 编辑圈子（v0.15.1） -->
+        <div class="overlay" id="ov-circlemk">
+          <div class="ov-head">
+            <button class="nav-btn" data-action="mk-cancel">取消</button>
+            <h3 id="mkTitle">创建圈子</h3>
+            <div style="position:absolute;right:8px"><button class="btn sm" data-action="mk-submit">创建</button></div>
+          </div>
+          <div class="screen-body pad" id="mkBody"></div>
+        </div>
+
+        <!-- 系统消息中心（v0.56：只收安全提醒 / 平台公告两类） -->
+        <div class="overlay" id="ov-sysmsg">
+          <div class="ov-head">
+            <button class="nav-btn" data-close="ov-sysmsg">‹ 返回</button>
+            <h3>系统消息</h3>
+            <div style="position:absolute;right:8px"><button class="btn sm" id="sysReadAll" data-action="sys-read-all">全部已读</button></div>
+          </div>
+          <div class="subtabs" id="sysTabs"></div>
+          <div class="screen-body"><div id="sysBody"></div></div>
+        </div>
+
+        <!-- 系统消息详情 -->
+        <div class="overlay" id="ov-sysdetail">
+          <div class="ov-head">
+            <button class="nav-btn" data-action="sys-back">‹ 返回</button>
+            <h3>消息详情</h3>
+            <div style="position:absolute;right:8px"><button class="nav-btn" data-action="sys-del" title="删除该消息" aria-label="删除该消息">🗑</button></div>
+          </div>
+          <div class="screen-body"><div id="sysDetailBody"></div></div>
+          <div class="ov-foot" id="sysDetailFoot"></div>
+        </div>
+
+        </div>
+
+        <!-- 会员中心 -->
+        <div class="overlay" id="ov-vip">
+          <div class="ov-head">
+            <button class="nav-btn" data-close="ov-vip">‹ 返回</button>
+            <h3>会员中心</h3>
+            <div style="position:absolute;right:8px"><button class="btn sm" data-action="orders">订单</button></div>
+          </div>
+          <div class="screen-body"><div id="vipBody"></div></div>
+          <!-- v0.34：吸底行动区——CTA 不随内容滚动消失 -->
+          <div class="ov-foot" id="vipFoot"></div>
+        </div>
+
+        <!-- 我的订单 -->
+        <div class="overlay" id="ov-orders">
+          <div class="ov-head">
+            <button class="nav-btn" data-close="ov-orders">‹ 返回</button>
+            <h3>我的订单</h3>
+          </div>
+          <div class="screen-body"><div id="ordersBody"></div></div>
+        </div>
+
+        <!-- 我的钱包（平台币） -->
+        <div class="overlay" id="ov-wallet">
+          <div class="ov-head">
+            <button class="nav-btn" data-close="ov-wallet">‹ 返回</button>
+            <h3>钱包</h3>
+          </div>
+          <div class="screen-body"><div id="walletBody"></div></div>
+        </div>
+
+        <!-- 收银台 -->
+        <div class="overlay" id="ov-pay">
+          <div class="ov-head">
+            <button class="nav-btn" data-pay="cancel">‹ 返回</button>
+            <h3 id="payTitle">收银台</h3>
+          </div>
+          <div class="screen-body" id="payBody"></div>
+          <div class="pay-foot" id="payFoot"></div>
+        </div>
+
+        <!-- 个人主页 -->
+        <div class="overlay" id="ov-profile">
+          <div class="ov-head">
+            <button class="nav-btn" data-close="ov-profile">‹ 返回</button>
+            <h3>个人主页</h3>
+            <!-- v0.52：次级/危险操作收进「···」半屏菜单，主页只留主 CTA（微信同款 IA） -->
+            <div class="nb-right"><button class="nav-btn" data-action="prof-more" title="更多操作">···</button></div>
+          </div>
+          <div class="screen-body"><div id="profileBody"></div></div>
+        </div>
+
+        <!-- v0.52：个人主页「···」更多操作 -->
+        <div class="sheet-mask" id="ov-profmore">
+          <div class="sheet">
+            <h4 style="margin:0 0 10px;font-size:16px">更多操作</h4>
+            <div id="profMoreBody"></div>
+            <button class="btn ghost block" data-close="ov-profmore" style="margin-top:10px">取消</button>
+          </div>
+        </div>
+
+        <!-- v0.52：设置备注名 -->
+        <div class="sheet-mask" id="ov-remark">
+          <div class="sheet">
+            <h4 style="margin:0 0 10px;font-size:16px">设置备注名</h4>
+            <div id="remarkHead" class="req-head"></div>
+            <input class="input" id="remarkInput" maxlength="20" placeholder="备注名（留空即清除备注）" oninput="App.remarkCount()" />
+            <div class="req-count"><span id="remarkCount">0</span>/20</div>
+            <p class="prof-note">备注名只有你自己可见。设置后，主页、好友列表与会话标题都会优先显示备注。</p>
+            <button class="btn block" data-action="remark-save" style="margin-top:10px">保存</button>
+            <button class="btn ghost block" data-close="ov-remark" style="margin-top:8px">取消</button>
+          </div>
+        </div>
+
+        <!-- v0.52：添加好友附言 -->
+        <div class="sheet-mask" id="ov-reqmsg">
+          <div class="sheet">
+            <h4 style="margin:0 0 10px;font-size:16px">添加好友</h4>
+            <div id="reqMsgHead" class="req-head"></div>
+            <textarea class="input" id="reqMsgText" rows="3" maxlength="50" placeholder="打个招呼，说明你是谁（选填）"></textarea>
+            <div class="req-count"><span id="reqMsgCount">0</span>/50</div>
+            <button class="btn block" data-action="req-send" style="margin-top:10px">发送申请</button>
+            <button class="btn ghost block" data-close="ov-reqmsg" style="margin-top:8px">取消</button>
+          </div>
+        </div>
+
+        <!-- 新的朋友 -->
+        <div class="overlay" id="ov-newfriends">
+          <div class="ov-head">
+            <button class="nav-btn" data-close="ov-newfriends">‹ 返回</button>
+            <h3>新的朋友</h3>
+          </div>
+          <div class="screen-body"><div id="newFriendBody"></div></div>
+        </div>
+
+        <!-- 我的二维码（v0.61 名片码重做） -->
+        <div class="overlay" id="ov-qr">
+          <div class="ov-head">
+            <button class="nav-btn" data-close="ov-qr">‹ 返回</button>
+            <h3 id="qrTitle">我的二维码</h3>
+          </div>
+          <div class="screen-body qr-page">
+            <div class="qr-card">
+              <div class="qr-cover"></div>
+              <div class="qr-head" id="qrHead"></div>
+              <div class="qr-stage">
+                <div class="qr-box" id="qrBox"></div>
+              </div>
+              <div class="qr-tip" id="qrTip"></div>
+            </div>
+            <div class="qr-acts">
+              <button class="qr-act" data-action="qr-save"><span class="qa-ico qa-save"></span><span class="qa-tx">保存图片</span></button>
+              <button class="qr-act" data-action="qr-share"><span class="qa-ico qa-share"></span><span class="qa-tx">分享</span></button>
+              <button class="qr-act" data-action="qr-copy"><span class="qa-ico qa-copy"></span><span class="qa-tx">复制号</span></button>
+              <button class="qr-act" data-action="qr-scan"><span class="qa-ico qa-scan"></span><span class="qa-tx">扫一扫</span></button>
+            </div>
+            <div class="qr-priv" id="qrNote"></div>
+          </div>
+        </div>
+
+        <!-- 扫一扫 -->
+        <div class="overlay" id="ov-scan">
+          <div class="ov-head">
+            <button class="nav-btn" data-close="ov-scan">‹ 返回</button>
+            <h3>扫一扫</h3>
+          </div>
+          <div class="screen-body" style="display:flex;flex-direction:column;align-items:center;padding-top:18px">
+            <div class="scan-frame">
+              <div class="scan-line"></div>
+              <div class="scan-corner tl"></div><div class="scan-corner tr"></div>
+              <div class="scan-corner bl"></div><div class="scan-corner br"></div>
+            </div>
+            <p class="scan-hint" id="scanHint">将对方的二维码放入框内</p>
+            <button class="btn accent" data-action="do-scan" id="scanBtn">模拟扫描一张名片二维码</button>
+            <p class="scan-sub">扫描二维码，识别后可在对方主页「加好友」</p>
+          </div>
+        </div>
+
+        <!-- 发布动态 -->
+        <div class="overlay" id="ov-publish">
+          <div class="ov-head">
+            <button class="nav-btn" data-close="ov-publish">取消</button>
+            <h3>发布动态</h3>
+            <div style="position:absolute;right:8px"><button class="btn sm" data-action="do-publish">发布</button></div>
+          </div>
+          <div class="screen-body pad">
+            <textarea class="input" id="pubText" rows="4" maxlength="200" placeholder="这一刻的想法…（可写找搭子、营地推荐、装备测评）" oninput="App.pubCount()"></textarea>
+            <div style="text-align:right;font-size:11px;color:var(--sub);margin:2px 2px 0" id="pubLen">0 / 200</div>
+            <div class="grp-title">配图</div>
+            <div id="pubImgs" class="ph-3" style="gap:6px"></div>
+            <div class="grp-title">位置</div>
+            <input class="input" id="pubLoc" placeholder="添加位置，如：杭州·径山" />
+            <!-- v0.65：可见范围与「同步到圈子」解耦。可见范围只决定要不要进广场 / 好友流，
+                 同步哪些圈子是另一件事，两者互不作为对方的前提条件。 -->
+            <div class="grp-title">可见范围</div>
+            <div id="pubVis" style="display:flex;gap:6px;flex-wrap:wrap"></div>
+            <div class="pub-vs-desc" id="pubVisDesc"></div>
+            <!-- 可同步圈子为空时，这一块（含标题）整体不展示 -->
+            <div id="pubCircleSec">
+              <div class="grp-title">同步到圈子<span class="gt-sub">可选 · 可多选 · 默认不选</span></div>
+              <div id="pubCircles"></div>
+            </div>
+            <div class="grp-title">兴趣标签</div>
+            <div id="pubTags" style="display:flex;gap:6px;flex-wrap:wrap"></div>
+          </div>
+        </div>
+
+        <!-- 广场详情（v0.37 瀑布流卡片点开） -->
+        <!-- v0.59 统一帖子详情：广场帖与好友动态共用同一套详情 UI（内容来源不同，交互一致） -->
+        <div class="overlay" id="ov-post-detail">
+          <!-- v0.69 固定操作栏：占自己那一行（不再浮在图上压住图片），正文在其下方滚动。
+               左：返回 + 作者昵称（点昵称进主页）；右：头像 / 关注 / 转发。
+               层级 z-index:40 高于内容；中部不再重复头像昵称关注。 -->
+          <div class="pd-topbar">
+            <div class="pd-tb-l">
+              <button class="pd-tb-btn" data-action="close-post-detail" aria-label="返回">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>
+              </button>
+              <span class="pd-tb-name" id="pdTbName" data-action="open-profile"></span>
+            </div>
+            <div class="pd-tb-r">
+              <span class="pd-tb-av" id="pdTbAv"></span>
+              <button class="pd-tb-follow" id="pdTbFollow" data-action="follow">关注</button>
+              <button class="pd-tb-btn" data-action="pd-share" aria-label="转发">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v7a1.6 1.6 0 0 0 1.6 1.6h12.8A1.6 1.6 0 0 0 20 19v-7"/><path d="M8.4 8.4 12 4.8l3.6 3.6"/><path d="M12 4.8V15"/></svg>
+              </button>
+            </div>
+          </div>
+          <div class="screen-body" style="padding:0;background:var(--n-50)"></div>
+          <!-- 底部评论输入条：空内容时发送按钮禁用，避免发出空评论 -->
+          <div class="pd-bar">
+            <input class="input" id="pdCmInput" placeholder="说点什么…" oninput="App.pdCmInput()" />
+            <button class="btn accent sm pd-send" id="pdCmSend" data-action="pd-send" disabled>发送</button>
+          </div>
+        </div>
+
+        <!-- v0.59 全局搜索：跨用户 / 动态 / 圈子 / 话题 的聚合搜索（含历史、热搜、骨架屏、空态） -->
+        <div class="overlay" id="ov-search">
+          <div class="ov-head">
+            <div class="sr-bar">
+              <span class="sr-ico"><svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="9" cy="9" r="5.2"/><path d="m13 13 3.4 3.4"/></svg></span>
+              <input class="input" id="globalSearch" placeholder="搜索用户、动态、圈子、话题" oninput="App.searchInput(this.value)" />
+              <button class="sr-x" data-action="sr-clear" aria-label="清空">✕</button>
+            </div>
+            <button class="nav-btn" data-close="ov-search">取消</button>
+          </div>
+          <div class="screen-body"><div id="searchBody"></div></div>
+        </div>
+
+        <!-- v0.59 图片查看器：多图左右滑动 / 页码 / 保存 -->
+        <div class="overlay viewer-ov" id="ov-viewer">
+          <div class="vw-head">
+            <span class="vw-num" id="vwNum">1/1</span>
+            <button class="vw-close" data-action="close-viewer" aria-label="关闭">✕</button>
+          </div>
+          <div class="vw-stage" id="vwStage"></div>
+          <div class="vw-foot">
+            <button class="btn ghost sm" data-action="viewer-prev">‹ 上一张</button>
+            <button class="btn ghost sm" data-action="viewer-save">保存到相册</button>
+            <button class="btn ghost sm" data-action="viewer-next">下一张 ›</button>
+          </div>
+        </div>
+
+        <!-- 编辑资料 -->
+        <div class="overlay" id="ov-edit">
+          <div class="ov-head">
+            <button class="nav-btn" data-close="ov-edit">取消</button>
+            <h3>编辑资料</h3>
+            <div style="position:absolute;right:8px"><button class="btn sm" data-action="do-edit">保存</button></div>
+          </div>
+          <div class="screen-body pad">
+            <div style="text-align:center;padding:10px 0 16px">
+              <div class="avatar xl" id="editAvatar" style="margin:0 auto;cursor:pointer">🧭</div>
+              <div style="color:var(--sub);font-size:12px;margin-top:6px">点击更换头像</div>
+            </div>
+            <div class="grp-title">昵称</div><input class="input" id="editName" />
+            <div class="grp-title">签名</div><input class="input" id="editSign" />
+            <div class="grp-title">城市</div><input class="input" id="editCity" />
+            <div class="grp-title">兴趣标签（决定推荐内容，点选切换）</div>
+            <div id="editTags" style="display:flex;gap:6px;flex-wrap:wrap"></div>
+          </div>
+        </div>
+
+        <!-- 设置 -->
+        <div class="overlay" id="ov-settings">
+          <div class="ov-head">
+            <button class="nav-btn" data-close="ov-settings">‹ 返回</button>
+            <h3>设置</h3>
+          </div>
+          <div class="screen-body"><div id="settingsBody"></div></div>
+        </div>
+
+        <!-- 通知中心（v0.77：互动通知聚合） -->
+        <div class="overlay" id="ov-notifications">
+          <div class="ov-head">
+            <button class="nav-btn" data-close="ov-notifications">‹ 返回</button>
+            <h3>通知</h3>
+            <div style="position:absolute;right:8px"><button class="btn sm" id="notiReadAll" data-action="noti-read-all">全部已读</button></div>
+          </div>
+          <div class="subtabs" id="notiTabs"></div>
+          <div class="screen-body"><div id="notiBody"></div></div>
+        </div>
+
+        <!-- 通知设置（v0.77：分类型开关） -->
+        <div class="overlay" id="ov-notifysettings">
+          <div class="ov-head">
+            <button class="nav-btn" data-close="ov-notifysettings">‹ 返回</button>
+            <h3>消息通知</h3>
+          </div>
+          <div class="screen-body"><div id="notifySettingsBody"></div></div>
+        </div>
+
+        <!-- 关注 / 粉丝列表（v0.77） -->
+        <div class="overlay" id="ov-follow">
+          <div class="ov-head">
+            <button class="nav-btn" data-close="ov-follow">‹ 返回</button>
+            <h3 id="followTitle">关注</h3>
+          </div>
+          <div class="screen-body"><div id="followBody"></div></div>
+        </div>
+
+        <!-- 账号与安全（v0.77：合规闭环） -->
+        <div class="overlay" id="ov-accountsecurity">
+          <div class="ov-head">
+            <button class="nav-btn" data-close="ov-accountsecurity">‹ 返回</button>
+            <h3>账号与安全</h3>
+          </div>
+          <div class="screen-body"><div id="accountSecurityBody"></div></div>
+        </div>
+
+        <!-- 邀请好友进群（v0.77） -->
+        <div class="overlay" id="ov-groupinvite">
+          <div class="ov-head">
+            <button class="nav-btn" data-action="ginv-cancel">取消</button>
+            <h3>邀请好友进群</h3>
+            <div style="position:absolute;right:8px"><button class="btn sm" data-action="ginv-send">发送邀请</button></div>
+          </div>
+          <div class="screen-body pad" id="ginvBody"></div>
+        </div>
+
+        <!-- 登录 / 注册（v0.45） -->
+        <div class="overlay auth-ov" id="ov-auth">
+          <div class="auth-wrap">
+            <div class="auth-brand">
+              <svg class="auth-logo" viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="44" fill="none" stroke="currentColor" stroke-width="3" opacity=".38"/><circle cx="69" cy="30" r="6" fill="#fec84b"/><path d="M20 66 L36 44 L47 56 L58 36 L76 66" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/><path d="M22 66 H78" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" opacity=".55"/></svg>
+              <h2>野遇</h2>
+              <p>和同好，去野外</p>
+            </div>
+
+            <!-- 面板 1：入口（一键取号优先）—— 手机号区为互斥双视图，同一时刻只显示一个 -->
+            <div class="auth-panel" id="ap-entry">
+              <div id="ap-phone">
+                <!-- 视图 A：已获取本机号码（回填 + 隐藏输入框） -->
+                <div id="ap-oc">
+                  <div class="aoc-card">
+                    <b class="oc-phone" id="aocPhone">188****6688</b>
+                    <div class="aoc-tip" id="aocTip"><i class="aoc-ico"></i><span id="aocTipTx">中国移动认证 · 已读取本机号码</span></div>
+                  </div>
+                  <div class="auth-err" id="aocErr"></div>
+                  <button class="btn block auth-main" id="authOneClick" data-action="auth-oneclick">获取验证码</button>
+                </div>
+
+                <!-- 视图 B：手动输入（兜底 + 主动切换） -->
+                <div id="ap-manual" style="display:none">
+                  <div class="auth-row">
+                    <span class="ar-pre">+86</span>
+                    <input id="authPhone" class="ar-input" type="tel" inputmode="numeric" maxlength="11" placeholder="请输入手机号" />
+                  </div>
+                  <div class="auth-err" id="phoneErr"></div>
+                  <button class="btn block auth-main sub" id="authSendBtn" data-action="auth-send">获取验证码</button>
+                </div>
+
+                <!-- 切换入口常驻容器底部：位置恒定，切换时自身不位移、文案随视图变化 -->
+                <button class="auth-link block" id="authPhoneToggle" data-action="auth-toggle-phone" data-v="manual">使用其他手机号</button>
+              </div>
+
+              <div class="auth-or"><span>其他登录方式</span></div>
+
+              <div class="auth-third">
+                <button class="ath" data-action="auth-oauth" data-v="wechat"><i>💬</i><span>微信</span></button>
+                <button class="ath" data-action="auth-oauth" data-v="qq"><i>🐧</i><span>QQ</span></button>
+                <button class="ath" data-action="auth-oauth" data-v="douyin"><i>🎵</i><span>抖音</span></button>
+              </div>
+
+              <div class="auth-agree" id="authAgree">
+                <span class="ck" id="authCk" data-action="auth-ck"></span>
+                <span>已阅读并同意 <b data-action="auth-doc" data-v="terms">《用户协议》</b><b data-action="auth-doc" data-v="privacy">《隐私政策》</b>；登录即注册，表示同意以上协议</span>
+              </div>
+            </div>
+
+            <!-- 面板 2：验证码（登录 / 注册 / 第三方绑定 三流复用） -->
+            <div class="auth-panel" id="ap-code" style="display:none">
+              <div class="auth-hd">
+                <button class="auth-back" data-action="auth-back">‹</button>
+                <h3 id="codeTitle">输入验证码</h3>
+              </div>
+              <p class="auth-sub" id="codeSub">验证码已发送至 <b id="codePhone">+86 188****6688</b></p>
+              <button class="auth-link" id="resendBtn" data-action="auth-resend">重新获取 60s</button>
+              <div class="auth-code" id="codeBox">
+                <input maxlength="1" inputmode="numeric" /><input maxlength="1" inputmode="numeric" /><input maxlength="1" inputmode="numeric" /><input maxlength="1" inputmode="numeric" /><input maxlength="1" inputmode="numeric" /><input maxlength="1" inputmode="numeric" />
+              </div>
+              <div class="auth-err" id="codeErr"></div>
+              <button class="btn block auth-main" id="authVerifyBtn" data-action="auth-verify">登录 / 注册</button>
+              <p class="auth-foot" id="codeFoot">收不到短信？检查短信拦截或改用一键登录</p>
+            </div>
+
+            <!-- 面板 3：新用户完善资料 -->
+            <!-- 面板 3：新用户完善资料（v0.48） -->
+            <div class="auth-panel" id="ap-profile" style="display:none">
+              <div class="prof-hd">
+                <h3>完善资料</h3>
+                <p>首次登录，补充资料让同好认出你</p>
+              </div>
+
+              <!-- 头像：内置预设 + 自定义（相册选图 → 裁剪） -->
+              <div class="prof-sec">
+                <div class="prof-lab">头像</div>
+                <div class="prof-ava-row">
+                  <button class="prof-ava" data-action="prof-pick-avatar" aria-label="选择头像">
+                    <span id="profAvaView">🧭</span>
+                    <i class="prof-ava-ic">✎</i>
+                  </button>
+                  <div class="prof-ava-txt">
+                    <button class="prof-link" data-action="prof-pick-avatar">从相册选择</button>
+                    <span class="prof-tip" id="profAvaTip">支持 JPG / PNG / WEBP，不超过 10MB</span>
+                  </div>
+                </div>
+                <div class="prof-presets" id="profPresets"></div>
+              </div>
+
+              <!-- 昵称：必填 + 实时校验 + 查重 -->
+              <div class="prof-sec">
+                <div class="prof-lab">昵称 <em>*</em></div>
+                <div class="prof-field" id="profField">
+                  <input id="profNick" class="prof-input" type="text" maxlength="12"
+                         placeholder="2-12 个字符" autocomplete="off" spellcheck="false" />
+                  <span class="prof-ic" id="profNickIc"></span>
+                </div>
+                <div class="prof-hint" id="profHint">支持中英文、数字、下划线和连字符</div>
+              </div>
+
+              <div class="prof-save-err" id="profSaveErr"></div>
+              <button class="btn block prof-save" id="profSaveBtn" data-action="prof-save" disabled>保存并进入野遇</button>
+              <button class="auth-link block" data-action="prof-skip">以后再说</button>
+            </div>
+
+            <div class="auth-loading" id="authLoading"><span class="al-spin"></span><span id="alTx">授权中…</span></div>
+          </div>
+        </div>
+
+        <!-- 头像裁剪（v0.48）—— 独立于登录浮层的模态层，z-index 更高 -->
+        <div class="overlay crop-ov" id="ov-crop">
+          <div class="crop-wrap">
+            <div class="crop-hd">
+              <button class="crop-btn" data-action="crop-cancel">取消</button>
+              <span class="crop-tt">裁剪头像</span>
+              <button class="crop-btn primary" data-action="crop-done">完成</button>
+            </div>
+            <div class="crop-stage" id="cropStage">
+              <img id="cropImg" alt="" draggable="false" />
+              <div class="crop-hole" id="cropHole"></div>
+            </div>
+            <div class="crop-zoom">
+              <span class="cz-ic">－</span>
+              <input type="range" id="cropZoom" min="100" max="300" value="100" step="1" aria-label="缩放" />
+              <span class="cz-ic">＋</span>
+            </div>
+            <p class="crop-ft">拖动图片调整位置，滑动滑块或双指缩放</p>
+          </div>
+        </div>
+
+        <!-- 相册选图：隐藏原生 input，由「从相册选择」按钮触发 -->
+        <input type="file" id="profFile" class="prof-file" accept="image/jpeg,image/png,image/webp" />
+
+        <!-- 设计规范（v0.22 Living Style Guide） -->
+        <div class="overlay" id="ov-design">
+          <div class="ov-head">
+            <button class="nav-btn" data-close="ov-design">‹ 返回</button>
+            <h3>设计规范</h3>
+          </div>
+          <div class="screen-body"><div id="designBody"></div></div>
+        </div>
+
+        <!-- 黑名单 -->
+        <div class="overlay" id="ov-blacklist">
+          <div class="ov-head">
+            <button class="nav-btn" data-close="ov-blacklist">‹ 返回</button>
+            <h3>黑名单</h3>
+          </div>
+          <div class="screen-body"><div id="blacklistBody"></div></div>
+        </div>
+
+        <!-- 谁看过我 -->
+        <div class="overlay" id="ov-visitors">
+          <div class="ov-head">
+            <button class="nav-btn" data-close="ov-visitors">‹ 返回</button>
+            <h3>谁看过我</h3>
+          </div>
+          <div class="screen-body"><div id="visitorBody"></div></div>
+        </div>
+
+        <!-- 举报 -->
+        <div class="sheet-mask" id="ov-report">
+          <div class="sheet">
+            <h4 style="margin:0 0 10px;font-size:16px">举报</h4>
+            <div id="reportBody"></div>
+            <button class="btn ghost block" data-action="close-report" style="margin-top:12px">取消</button>
+          </div>
+        </div>
+
+        <!-- 我的举报记录 -->
+        <div class="overlay" id="ov-reports">
+          <div class="ov-head">
+            <button class="nav-btn" data-close="ov-reports">‹ 返回</button>
+            <h3>我的举报记录</h3>
+          </div>
+          <div class="screen-body"><div id="reportsBody"></div></div>
+        </div>
+
+        <!-- 我的动态 -->
+        <div class="overlay" id="ov-mymoments">
+          <div class="ov-head">
+            <button class="nav-btn" data-close="ov-mymoments">‹ 返回</button>
+            <h3>我的动态</h3>
+          </div>
+          <div class="screen-body"><div id="myMomentBody"></div></div>
+        </div>
+
+        <!-- 破冰话术选择 -->
+        <div class="sheet-mask" id="ov-greet">
+          <div class="sheet">
+            <h4 style="margin:0 0 4px;font-size:16px">选一句开场白</h4>
+            <p style="margin:0 0 12px;color:var(--sub);font-size:12.5px" id="greetHint">选一句让对方愿意回的开场白</p>
+            <div id="greetOpts"></div>
+            <div class="grp-title" style="padding-left:0">或自己写一句</div>
+            <textarea class="input" id="greetCustom" rows="2" placeholder="自定义开场白…"></textarea>
+            <div style="display:flex;gap:8px;margin-top:12px">
+              <button class="btn ghost block" data-action="close-greet">取消</button>
+              <button class="btn block" data-action="send-greet">发送</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 首次兴趣标签引导（冷启动） -->
+        <div class="overlay" id="ov-onboard" style="z-index:150">
+          <div class="screen-body" style="padding:0;background:#fff">
+            <div style="padding:44px 24px 18px;text-align:center">
+              <div style="font-size:46px">🧭</div>
+              <h2 style="margin:10px 0 6px;font-size:22px">选择你感兴趣的方向</h2>
+              <p style="color:var(--sub);font-size:13.5px;margin:0">至少选 1 个，我们会据此推荐圈子与同好</p>
+            </div>
+            <div class="pad" style="padding-top:4px">
+              <div id="obTags" style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center"></div>
+            </div>
+            <div class="pad">
+              <p style="color:var(--sub);font-size:12px;text-align:center;margin:14px 0 10px" id="obTip">已选 0 个 · 至少选 1 个</p>
+              <button class="btn block" id="obGo" disabled style="opacity:.5">进入野遇</button>
+              <button class="btn ghost block" style="margin-top:8px" data-action="ob-skip">跳过</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Toast -->
+        <div class="toast" id="toast"></div>
+
+        <!-- 反馈弹窗 -->
+        <div class="center-mask" id="fbMask">
+          <div class="dialog">
+            <h4 style="margin:0 0 6px;font-size:16px">给你的反馈</h4>
+            <p style="margin:0 0 12px;color:var(--sub);font-size:12.5px">告诉我们哪里不好用？</p>
+            <div id="fbStars" style="font-size:24px;margin-bottom:10px;cursor:pointer"></div>
+            <textarea class="input" id="fbText" rows="3" placeholder="例如：广场找不到想聊的人 / 群聊入口太深…"></textarea>
+            <div style="display:flex;gap:8px;margin-top:12px">
+              <button class="btn ghost block" data-action="close-fb">稍后</button>
+              <button class="btn block" data-action="submit-fb">提交</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 确认弹窗 -->
+        <div class="center-mask" id="cfMask">
+          <div class="dialog">
+            <h4 style="margin:0 0 6px;font-size:16px" id="cfTitle">确认</h4>
+            <p style="margin:0 0 14px;color:var(--sub);font-size:13px" id="cfText"></p>
+            <div style="display:flex;gap:8px">
+              <button class="btn ghost block" data-action="close-cf">取消</button>
+              <button class="btn block" id="cfOk">确定</button>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /viewport -->
+      <div class="home-indicator"></div>
+
+      <!-- ==================== 开屏页 Splash（对齐 Flutter「晨光山野」） ====================
+           Flutter splash_page.dart：明亮晨光径向渐变 + 右上呼吸太阳 + 光尘/汇聚粒子
+           + 底部双层浅绿山影 + 绿色 Logo（圆环/双峰山脊/相遇点）+ 流动进度条；
+           无标签、无跳过按钮、无版本号；动画 2800ms 播完按登录态自动分流。 -->
+      <div class="splash" id="splash" role="img" aria-label="野遇 开屏页">
+        <canvas class="spl-canvas" id="splCanvas" aria-hidden="true"></canvas>
+        <div class="spl-sun" aria-hidden="true"></div>
+        <div class="spl-core">
+          <div class="spl-logo-wrap">
+            <div class="spl-glow"></div>
+            <svg class="spl-logo" viewBox="0 0 24 24" aria-hidden="true">
+              <circle class="spl-ring" cx="12" cy="12" r="9.9"/>
+              <path class="spl-ridge" d="M7.3 15.6 L10.2 11.0 L12.2 13.7 L14.1 11.0 L16.7 15.6"/>
+              <circle class="spl-sun-dot" cx="12" cy="8.2" r="1.7"/>
+            </svg>
+          </div>
+          <div class="spl-word"><span>野</span><span>遇</span></div>
+          <div class="spl-slogan">和同好，去野外</div>
+        </div>
+        <div class="spl-track" aria-hidden="true"><i></i></div>
+      </div>
+    </div><!-- /bezel -->
+  </div><!-- /phone -->
+
+  <!-- ==================== 右侧说明 ==================== -->
+</div>
+
+<script src="assets/config.js?v=99"></script>
+<script src="assets/auth.js?v=99"></script>
+<script src="assets/data.js?v=99"></script>
+<script src="assets/analytics.js?v=99"></script>
+<script src="assets/pay.js?v=99"></script>
+<script src="assets/vendor/qrcode.js?v=99"></script>
+<script src="assets/app.js?v=99"></script>
+</body>
+</html>
